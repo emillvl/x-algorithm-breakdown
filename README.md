@@ -2,7 +2,7 @@
 
 An analytical deep-dive into the architecture, signal mechanics, engagement modeling, and algorithmic optimization framework of X's ranking system. This repository contains the complete research report based on the official `xai-org/x-algorithm` repository releases from January and May 2026.
 
-**Primary Reference File:** `X_Algorithm_Research_Report_2026 2.pdf`
+**Read the report:** [X Algorithm Breakdown (PDF)](<X Algorithm/X_Algorithm_Breakdown.pdf>)
 
 ---
 
@@ -48,4 +48,4 @@ The report includes an implementation breakdown of the `phoenix/run_pipeline.py`
 * **License:** Apache 2.0
 
 ---
-*For a complete structural review, including temporal complexity matrices and adversarial open-source risk paradoxes, refer directly to the full PDF report in this repository.*[cite: 1]
+*For a complete structural review, including temporal complexity matrices and adversarial open-source risk paradoxes, refer directly to the full PDF report in this repository.*
