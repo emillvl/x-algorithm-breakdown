@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inside X's For You Algorithm - May 2026 Source Snapshot</title>
+<style>
+@page {
+  size: A4;
+  margin: 18mm 20mm 18mm 20mm;
+  @top-right { content: "X ALGORITHM BREAKDOWN  /  MAY 2026 SOURCE SNAPSHOT"; font: 7.5pt Arial, sans-serif; color: #65717b; }
+  @bottom-center { content: "EMIL VELIYEV   ·   " counter(page); font: 7.5pt Arial, sans-serif; color: #6a7178; }
+}
+@page:first { @top-right { content: none; } @bottom-center { content: none; } }
+* { box-sizing: border-box; }
+body { margin: 0; color:#23282d; font-family: Georgia, "Times New Roman", serif; font-size: 10.6pt; line-height: 1.43; }
+.cover { min-height: 250mm; display:flex; flex-direction:column; justify-content:center; page-break-after:always; }
+.kicker { color:#2c5273; font:700 8pt Arial,sans-serif; letter-spacing:.08em; text-transform:uppercase; margin-bottom:10mm; }
+h1,h2,h3 { font-family: Arial,sans-serif; color:#1f3a56; page-break-after:avoid; }
+.cover h1 { font-size:29pt; line-height:1.02; color:#1c2631; margin:0 0 4mm; padding-bottom:6mm; border-bottom:2px solid #2c5273; }
+.cover .subtitle { font: 14pt Arial,sans-serif; color:#45515b; margin:0 0 6mm; }
+.deck { font-style:italic; font-size:11.5pt; color:#41484e; max-width:150mm; margin-bottom:12mm; }
+.meta { width:100%; border-collapse:collapse; margin-top:6mm; }
+.meta td { border-bottom:1px solid #d6dde2; padding:3mm 0; }
+.meta td:first-child { width:30mm; font:700 7.4pt Arial,sans-serif; color:#56606a; text-transform:uppercase; }
+.scope-note, .callout { margin:7mm 0; padding:4mm 5mm; border-left:3px solid #aab8c3; background:#f7f9fa; font-style:italic; color:#333a40; }
+.scope-note { margin-top:14mm; }
+.small { font: 8pt Arial,sans-serif; color:#6a7178; }
+h1 { font-size:17pt; margin:10mm 0 4mm; }
+h2 { font-size:12.5pt; margin:7mm 0 3mm; }
+h3 { font-size:10.5pt; margin:5mm 0 2mm; }
+p { margin:0 0 3.2mm; orphans:3; widows:3; }
+ul,ol { margin:1mm 0 4mm 6mm; padding-left:5mm; }
+li { margin:1.5mm 0; }
+table { width:100%; border-collapse:collapse; margin:4mm 0 6mm; font-size:9pt; page-break-inside:avoid; }
+th { background:#2c5273; color:#fff; font:700 8.5pt Arial,sans-serif; text-align:left; padding:2.7mm 3mm; }
+td { padding:2.7mm 3mm; border-bottom:1px solid #d7dee4; vertical-align:top; }
+tr:nth-child(even) td { background:#f7f9fa; }
+.flow td:first-child { width:12mm; background:#2c5273 !important; color:#fff; font:700 8pt Arial,sans-serif; text-align:center; }
+.flow td:last-child { font-family:Arial,sans-serif; }
+.mask th, .mask td { text-align:center; }
+.mask th:first-child, .mask td:first-child { text-align:left; font-family:Arial,sans-serif; font-weight:700; }
+.refs p { padding-left:6mm; text-indent:-6mm; font-size:8.5pt; line-height:1.3; margin-bottom:2.5mm; }
+.pagebreak { page-break-before:always; }
+code { font-family:"Courier New",monospace; font-size:.92em; }
+a { color:#2c5273; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">Revised research note</div>
+  <h1>Inside X's For You Algorithm</h1>
+  <div class="subtitle">A source-grounded breakdown of the May 2026 open-source release</div>
+  <div class="deck">Architecture, retrieval, ranking, candidate isolation, and the limits of what the public code can actually tell us.</div>
+
+  <table class="meta">
+    <tr><td>Author</td><td>Emil Veliyev</td></tr>
+    <tr><td>Primary source</td><td><code>xai-org/x-algorithm @ e414c17</code></td></tr>
+    <tr><td>Source date</td><td>May 15, 2026</td></tr>
+    <tr><td>Revision</td><td>October 2026</td></tr>
+  </table>
+
+  <div class="scope-note"><strong>Scope note.</strong> This report analyzes the May 15, 2026 source snapshot. X published substantial additional code in August and September 2026, including production-facing Phoenix code, explicit score weights, and a broader visibility-filtering stack. Those later releases are used here only to clarify the limits of the May snapshot; they are not folded back into the historical architecture as if they were already present.</div>
+  <div class="small">This is an independent technical analysis. It is not affiliated with or endorsed by X Corp. or xAI.</div>
+</section>
+
+<div class="kicker">Executive summary</div>
+<h1>What the May release actually showed</h1>
+<p>The May 2026 release of X's open-source recommendation code is most useful when read as a systems-engineering snapshot, not as a recipe for “beating the algorithm.” It shows how a For You request moves through an orchestration layer, draws candidates from in-network and out-of-network sources, enriches and filters those candidates, predicts several kinds of user response, and finally selects a ranked set of posts. [1][2]</p>
+<p>Three parts deserve special attention. First, Thunder and Phoenix solve different retrieval problems: Thunder keeps recent posts from followed accounts close at hand, while Phoenix uses learned representations to search beyond the viewer's network. Second, Phoenix ranking is not a single engagement counter. The model predicts multiple actions per candidate, and a downstream scorer combines predicted values. Third, the ranker uses a candidate-isolation attention mask so that one candidate cannot change another candidate's representation simply by appearing beside it in the same inference batch. [2][3][4]</p>
+<p>The May release also made the system easier to reproduce. It added an end-to-end retrieval-to-ranking script, a frozen mini-model and corpus distributed through Git LFS, a Grox content-understanding service, new candidate sources and hydrators, and an ads-blending path. Those additions made the repository far more useful for study, even though the public snapshot still left important production details out. [1][2]</p>
+<div class="callout">The central takeaway is less dramatic than most social-media advice suggests: the public code describes a per-viewer recommendation pipeline built around predicted behavior, retrieval quality, eligibility checks, and diversification. It does not support simple statements such as “one reply is worth N likes” or “this one trick guarantees reach.”</div>
+
+<h2>Reading guide</h2>
+<table>
+<tr><th>Section</th><th>Question answered</th></tr>
+<tr><td>1. Scope and method</td><td>What source snapshot is being analyzed, and what counts as evidence?</td></tr>
+<tr><td>2. Request path</td><td>How does a feed request move through Home Mixer?</td></tr>
+<tr><td>3. Retrieval</td><td>What do Thunder and Phoenix each contribute?</td></tr>
+<tr><td>4. Phoenix ranking</td><td>How does candidate isolation work, and why does it matter?</td></tr>
+<tr><td>5. Scoring</td><td>What do action weights mean - and what do they not mean?</td></tr>
+<tr><td>6. Grox and blending</td><td>Where do content understanding and ads fit?</td></tr>
+<tr><td>7. Reproducibility</td><td>What can a researcher actually run from the May release?</td></tr>
+<tr><td>8. Limits</td><td>What remains unknown or changed in later releases?</td></tr>
+</table>
+
+<h1>1. Scope and method</h1>
+<p>The primary source for this report is commit <code>e414c17</code> of <code>xai-org/x-algorithm</code>, pushed on May 15, 2026. That commit added the May release notes, the combined Phoenix inference pipeline, the Grox service, ads-related code, additional hydrators and sources, and substantial updates to the candidate-pipeline framework. A second commit later the same day, <code>0bfc279</code>, replaced the Git LFS artifact pointer for the Phoenix bundle; it changed the packaged artifact, not the architecture described here. [1][6]</p>
+<p>The analysis follows a simple rule: a claim is presented as fact only when the May repository states it directly or the relevant code makes it observable. Interpretations are labeled as such. Later X documentation is used only where it helps distinguish a May-era limitation from a fact that became visible later. This matters because the current repository is materially more complete than the May snapshot. [5]</p>
+<ol>
+<li><strong>Direct source evidence.</strong> Repository documentation, source files, function behavior, and configuration surfaces at the pinned commit.</li>
+<li><strong>Engineering interpretation.</strong> Reasoned conclusions about why a design choice is useful - for example, why candidate isolation improves score independence across batches.</li>
+<li><strong>Not inferred.</strong> Traffic volume, global request counts, hidden production thresholds, or confidential ranking behavior that the open repository does not establish.</li>
+</ol>
+<div class="callout">One concrete documentation inconsistency is worth noting: the root May README describes a 256-dimensional, 2-layer mini Phoenix artifact, while <code>phoenix/README.md</code> describes a 128-dimensional, 4-layer mini configuration. Because the artifact configuration is loaded at runtime, this report treats those numbers as demo-package details rather than production specifications. [2][3]</div>
+
+<h1>2. The request path: orchestration before ranking</h1>
+<p>Home Mixer is the coordinating layer. It does not simply hand a pile of posts to a neural network. A request is hydrated with viewer context, candidate sources run, candidate metadata is filled in, filters remove ineligible items, scorers assign values, a selector chooses the highest-ranked candidates, and post-selection checks run before the final response is returned. The candidate-pipeline abstraction makes those stages explicit. [2]</p>
+<table>
+<tr><th>Stage</th><th>Role in the May pipeline</th></tr>
+<tr><td>Query hydration</td><td>Build viewer context such as recent actions, following information, topic context, served history, and other request features.</td></tr>
+<tr><td>Candidate sources</td><td>Fetch possible posts from sources such as Thunder and Phoenix, alongside newer May sources.</td></tr>
+<tr><td>Candidate hydration</td><td>Attach post, author, language, media, engagement, and other metadata needed downstream.</td></tr>
+<tr><td>Pre-scoring filters</td><td>Remove candidates that should not proceed to ranking.</td></tr>
+<tr><td>Scorers</td><td>Generate model predictions and combine them with additional scoring logic.</td></tr>
+<tr><td>Selector</td><td>Order candidates and keep the requested result set.</td></tr>
+<tr><td>Post-selection processing</td><td>Run final hydration, visibility/dedup checks, and asynchronous side effects.</td></tr>
+</table>
+<p>The framework also runs independent work in parallel where possible. In practice, that means the architecture is as much about controlling latency and failure boundaries as it is about model quality. The model sits inside a larger serving system; it is not the system by itself. [1][2]</p>
+
+<h2>A simplified May 2026 request path</h2>
+<table class="flow">
+<tr><td>01</td><td>For You request</td></tr>
+<tr><td>02</td><td>Home Mixer: hydrate viewer context</td></tr>
+<tr><td>03</td><td>Candidate retrieval: Thunder + Phoenix + other enabled sources</td></tr>
+<tr><td>04</td><td>Hydrate candidates and apply eligibility filters</td></tr>
+<tr><td>05</td><td>Phoenix predictions → weighted scoring → diversity / OON adjustments</td></tr>
+<tr><td>06</td><td>Select top candidates and run post-selection checks</td></tr>
+<tr><td>07</td><td>Ranked feed response</td></tr>
+</table>
+
+<h1>3. Retrieval: Thunder and Phoenix solve different problems</h1>
+<h2>Thunder: recent in-network content</h2>
+<p>Thunder is described in the May repository as an in-memory post store fed by post create/delete events. It maintains recent material on a per-user basis and supplies in-network candidates - posts from accounts the viewer follows. The project documentation describes the lookup path as sub-millisecond and emphasizes avoiding a database round trip for this stage. [2]</p>
+<p>That design fits the problem. In-network retrieval does not need to search the whole corpus for conceptual similarity; it needs a fast answer to a much narrower question: what recent posts are available from this viewer's network?</p>
+
+<h2>Phoenix retrieval: searching beyond the network</h2>
+<p>Phoenix retrieval addresses the opposite case. A two-tower model builds a representation for the viewer and representations for candidate posts, then uses similarity search to pull a manageable set of out-of-network candidates from a much larger corpus. In the released demo, retrieval uses dot-product similarity over precomputed candidate representations. [3][7]</p>
+<p>The two-stage pattern is standard for large recommendation systems for a reason: a relatively cheap retrieval stage reduces millions of possibilities to a smaller set, and a more expressive ranker spends compute only where it can matter. The open-source Phoenix demo makes that separation unusually easy to inspect. [3]</p>
+
+<h1>4. Phoenix ranking and candidate isolation</h1>
+<p>The ranking model consumes three broad groups of information: a user representation, a sequence of past interactions, and the candidates to be scored. It produces action logits for each candidate. The distinctive implementation detail is the attention mask created by <code>make_recsys_attn_mask</code> in <code>phoenix/grok.py</code>. [4]</p>
+<p>The mask lets each candidate attend to the viewer context and to itself, but not to other candidates. In plain terms, candidate A can use what the model knows about the viewer, but it cannot change its score just because candidate B happens to be placed beside it in the same batch. [4]</p>
+
+<h2>Candidate-isolation mask, simplified</h2>
+<table class="mask">
+<tr><th>Query \ Key</th><th>Viewer + history</th><th>Candidate A</th><th>Candidate B</th><th>Candidate C</th></tr>
+<tr><td>Viewer + history</td><td>context</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>Candidate A</td><td>yes</td><td>self</td><td>no</td><td>no</td></tr>
+<tr><td>Candidate B</td><td>yes</td><td>no</td><td>self</td><td>no</td></tr>
+<tr><td>Candidate C</td><td>yes</td><td>no</td><td>no</td><td>self</td></tr>
+</table>
+
+<p>Why is this useful? The strongest reason is score independence. If a candidate's representation depended on the other candidates in the batch, the same post could receive a different model score simply because its batch companions changed. Candidate isolation removes that interaction. It also removes the candidate-to-candidate quadratic attention block, though it would be too strong to say that the entire transformer becomes “linear” in every dimension; the viewer/history context still has its own attention cost. [3][4]</p>
+<div class="callout">This is a good example of where careful wording matters. The code clearly removes cross-candidate attention. That is stronger and more defensible than turning the implementation detail into a sweeping claim that all inference complexity has become linear.</div>
+
+<h1>5. Multi-action scoring: predicted behavior, not engagement arithmetic</h1>
+<p>Phoenix is built to predict several possible responses to a candidate rather than one generic relevance number. The May mini configuration exposes 19 action types, and the documentation lists outcomes such as favorite, reply, repost, quote, click, profile click, video view, photo expand, share, dwell, follow, not interested, block, mute, and report. [2][3]</p>
+<p>A downstream weighted scorer combines model outputs into a ranking score. The important word is <em>predicted</em>. The weights apply to the model's estimate of what this viewer is likely to do; they are not exchange rates between raw engagement counts. X's August 2026 documentation later made this point explicit because readers repeatedly interpreted weights as statements such as “one report cancels 468 likes.” That is not how the score works. [5]</p>
+<p>The May end-to-end demo is another place where overreading is easy. <code>run_pipeline.py</code> includes a small illustrative formula that combines favorite, reply, repost, and dwell probabilities with simple coefficients. Those coefficients are part of the demonstration harness. They should not be presented as the production For You weights. [7]</p>
+
+<h2>What you can safely conclude</h2>
+<ul>
+<li>The ranker is multi-task: it estimates multiple user actions for each candidate.</li>
+<li>The final ordering can combine positive and negative predicted outcomes rather than optimizing one engagement event in isolation.</li>
+<li>The score is personalized because the probabilities depend on the viewer context and recent history.</li>
+<li>The May public snapshot is not a reliable basis for converting one observed engagement into a universal number of another engagement.</li>
+</ul>
+
+<h2>What you should not conclude</h2>
+<ul>
+<li>A reply has a fixed universal value relative to a like.</li>
+<li>A visible coefficient in a demo script is necessarily a production coefficient.</li>
+<li>A post carries one global reach score that is independent of the viewer.</li>
+</ul>
+
+<h1>6. Filtering, content understanding, and blending</h1>
+<h2>Eligibility and post-selection checks</h2>
+<p>The May pipeline documents filters for duplicates, age, self-posts, repost deduplication, subscription eligibility, previously seen or served posts, muted keywords, and author social-graph constraints. A post-selection visibility filter and conversation deduplication step appear after ranking. This is a reminder that ranking is only one gate in the serving path. A high model score does not override eligibility. [2]</p>
+
+<h2>Grox: asynchronous content understanding</h2>
+<p>The May release introduced Grox as a separate content-understanding service with classifiers, embedders, and task execution for workloads including spam detection, post-category classification, and PTOS policy enforcement. That architecture keeps expensive or asynchronous understanding work separate from the latency-critical request path while still allowing derived labels and embeddings to be consumed downstream. [1][2]</p>
+<p>It is tempting to read every classifier or label as a direct ranking penalty. The public architecture does not justify that shortcut. Some signals are used for eligibility, safety, brand-safety, categorization, or candidate hydration rather than as a simple additive rank term. Later releases made that separation between ranking and visibility filtering much clearer. [5]</p>
+
+<h2>Ads and other non-post items</h2>
+<p>The May code also added an ads-blending module and new non-post candidate paths. These components matter because the final feed is not produced by one monolithic ranking list. Home Mixer coordinates post ranking and then blends or positions other items under separate constraints, including brand-safety considerations. [1]</p>
+
+<h1>7. Reproducibility: what the May release lets you run</h1>
+<p>The most practically valuable part of the May drop is <code>phoenix/run_pipeline.py</code>. It loads exported retrieval and ranking checkpoints, a precomputed corpus, and a user action sequence, then runs retrieval followed by ranking. The default demo retrieves the top 200 candidates from the packaged corpus before scoring them in chunks supported by the ranker. [7]</p>
+<p>The supplied sports corpus is a demonstration environment rather than a mirror of the full X corpus. <code>phoenix/README.md</code> describes roughly 537,000 sports-related post IDs from a six-hour window and a frozen mini-model. Production Phoenix is described as larger and continuously trained. The public artifact is therefore best viewed as a reproducible teaching and research object, not a complete local clone of X's live feed. [3]</p>
+
+<h2>A sensible experiment</h2>
+<ol>
+<li><strong>Hold the corpus fixed.</strong> Use the same demo corpus so retrieval candidates remain comparable.</li>
+<li><strong>Change one part of the user history.</strong> For example, alter one interaction or action value instead of replacing the whole sequence.</li>
+<li><strong>Compare retrieval and ranking separately.</strong> A post can move because it was retrieved differently, because its predicted actions changed, or both.</li>
+<li><strong>Repeat across several histories.</strong> One synthetic user sequence is not evidence for a general rule about all users.</li>
+</ol>
+<div class="callout">The demo is strongest as a controlled laboratory. It is weakest when treated as a calculator that reveals production reach for a real account.</div>
+
+<h1>8. What the May snapshot does not tell us</h1>
+<p>Open-source code is unusually informative, but it has boundaries. The May repository itself says the Phoenix implementation is representative of the internal model except for specific scaling optimizations. It also exposes a frozen mini checkpoint rather than continuous production training. Those qualifications should be carried into any conclusion drawn from the code. [3]</p>
+<table>
+<tr><th>Open source supports</th><th>Open source does not establish</th></tr>
+<tr><td>The staged request path and candidate-pipeline structure.</td><td>The exact traffic volume or number of ranking decisions made globally.</td></tr>
+<tr><td>Thunder/Phoenix roles and the two-stage retrieval/ranking design.</td><td>All closed services, datasets, labels, or experiments that may affect production.</td></tr>
+<tr><td>Candidate-isolation attention behavior in the released Phoenix model.</td><td>That every production scaling optimization is identical to the demo.</td></tr>
+<tr><td>Multi-action prediction and weighted combination as a scoring pattern.</td><td>A permanent universal exchange rate between likes, replies, reports, or other actions.</td></tr>
+<tr><td>The existence of Grox, ads blending, hydrators, filters, and released demo artifacts.</td><td>That every visible field is a direct ranking signal or that every absent field is irrelevant.</td></tr>
+</table>
+<p>Later releases reinforce this caution. On August 13, X published additional production-facing Phoenix code, explicit configuration parameters including weights, and a much broader visibility-filtering and labeling stack. On August 14, the project documentation explicitly corrected common misunderstandings about action weights. On September 18, the transparency tooling gained additional legal-compliance reporting. The May snapshot remains valuable, but it should be cited as a historical snapshot rather than described as the complete current algorithm. [5]</p>
+
+<h1>Conclusion</h1>
+<p>The May 2026 X algorithm release is interesting because it makes a modern recommendation stack legible end to end. The architecture separates fast in-network retrieval from learned out-of-network retrieval, uses a transformer to predict several kinds of viewer response, isolates candidates during ranking, and embeds the model inside a larger pipeline of hydration, filtering, selection, and side effects. [2][3][4]</p>
+<p>The most durable lesson is methodological. Recommendation systems this large are not well described by a list of folk rules. The code points instead to a set of interacting systems: what is eligible, what is retrieved, what the model predicts for a particular viewer, how those predictions are combined, how repeated authors are handled, and what final checks apply before serving. Any explanation that collapses all of that into a single magic weight is easier to remember, but less faithful to the source.</p>
+<p>Read this release as an engineering snapshot. Use the runnable model to test ideas. Keep observations separate from inference. And when later source releases contradict an earlier interpretation, update the interpretation rather than defending the story.</p>
+
+<h1>References and source notes</h1>
+<div class="refs">
+<p>[1] xai-org/x-algorithm, commit e414c171ed68266341193330bc4864bf3f3534e3, “Open-source X Recommendation Algorithm,” May 15, 2026. https://github.com/xai-org/x-algorithm/commit/e414c171ed68266341193330bc4864bf3f3534e3</p>
+<p>[2] xai-org/x-algorithm, README.md at e414c17, May 15, 2026. https://github.com/xai-org/x-algorithm/blob/e414c171ed68266341193330bc4864bf3f3534e3/README.md</p>
+<p>[3] xai-org/x-algorithm, phoenix/README.md at e414c17. https://github.com/xai-org/x-algorithm/blob/e414c171ed68266341193330bc4864bf3f3534e3/phoenix/README.md</p>
+<p>[4] xai-org/x-algorithm, phoenix/grok.py at e414c17, including make_recsys_attn_mask. https://github.com/xai-org/x-algorithm/blob/e414c171ed68266341193330bc4864bf3f3534e3/phoenix/grok.py</p>
+<p>[5] xai-org/x-algorithm, current README.md, notable updates dated August 13-14 and September 18, 2026. Accessed October 1, 2026. https://github.com/xai-org/x-algorithm</p>
+<p>[6] xai-org/x-algorithm, commit 0bfc2795d308f90032544322747caacd535f75ae, Git LFS artifact pointer update, May 15, 2026. https://github.com/xai-org/x-algorithm/commit/0bfc2795d308f90032544322747caacd535f75ae</p>
+<p>[7] xai-org/x-algorithm, phoenix/run_pipeline.py at e414c17. https://github.com/xai-org/x-algorithm/blob/e414c171ed68266341193330bc4864bf3f3534e3/phoenix/run_pipeline.py</p>
+</div>
+
+<h2>Revision note</h2>
+<p>This revised edition replaces a denser earlier presentation. The technical scope remains centered on the May 2026 open-source release, but claims have been narrowed where the source does not support production-scale certainty, and later official documentation is cited where it materially changes how the May snapshot should be interpreted.</p>
+
+</body>
+</html>
