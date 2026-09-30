@@ -1,51 +1,101 @@
-# X Algorithm: A Comprehensive Technical Research Report (2026 Edition)
+# X Algorithm Breakdown
 
-An analytical deep-dive into the architecture, signal mechanics, engagement modeling, and algorithmic optimization framework of X's ranking system. This repository contains the complete research report based on the official `xai-org/x-algorithm` repository releases from January and May 2026.
+A source-grounded technical analysis of the **May 15, 2026** open-source release of X's For You recommendation system.
 
-**Read the report:** [X Algorithm Breakdown (PDF)](<X Algorithm/X_Algorithm_Breakdown.pdf>)
+The report focuses on what can be established from the public `xai-org/x-algorithm` source snapshot: the request path through Home Mixer, in-network and out-of-network retrieval, Phoenix ranking, candidate-isolation attention, multi-action prediction, filtering, Grox content understanding, and the reproducible mini-model pipeline released in May.
 
----
+**Read the report:** [X Algorithm Breakdown - May 2026](report/X_Algorithm_Breakdown_May_2026.pdf)
 
-## 📌 Executive Summary
-Between late 2025 and May 2026, X underwent a foundational architectural pivot, abandoning its legacy Scala-based engineering framework (comprising hundreds of hand-tuned heuristics and manual weighting tables) in favor of a modern **62.9% Rust and 37.1% Python/JAX** multi-task transformer pipeline. 
+## Why this version exists
 
-This report deconstructs how the production system processes ~500 million daily posts and executes roughly 5 billion individual ranking decisions in under 200 milliseconds per request.
+The original report was technically dense and sometimes stated interpretations more strongly than the source justified. This revision keeps the technical core but changes the way it is presented:
 
----
+- clearer, more natural prose;
+- a restrained research-report layout instead of a presentation-style PDF;
+- explicit separation between source evidence and interpretation;
+- removal or qualification of unsupported production-scale claims;
+- a clearer explanation of candidate isolation and multi-action scoring;
+- source notes pinned to the May 2026 release;
+- a note on later August/September 2026 releases where they materially change how the May snapshot should be read.
 
-## 🏗️ Core Architectural Modules Covered
+## Scope
 
-* **Thunder (`thunder/`):** The latency-critical Rust service acting as an in-memory, Kafka-backed post store handling sub-millisecond in-network retrieval.
-* **Phoenix Retrieval (`phoenix/`):** The out-of-network discovery engine operating on a two-tower transformer architecture utilizing Approximate Nearest-Neighbor (ANN) similarity search.
-* **Grox (`grox/`):** The multimodal content-understanding pipeline executing Vision-Language Model (VLM) inference for asynchronous spam detection, quality scoring (`slop_score`), and brand safety.
-* **Home Mixer (`home-mixer/`):** The Rust orchestration layer managing 21 parallel context hydrators, pre-scoring filters, and ad-blending injection.
+The primary source is:
 
----
+- `xai-org/x-algorithm` at commit [`e414c17`](https://github.com/xai-org/x-algorithm/commit/e414c171ed68266341193330bc4864bf3f3534e3), published May 15, 2026.
 
-## ⚡ Key Algorithmic Breakthroughs Analyzed
+A second May 15 commit, [`0bfc279`](https://github.com/xai-org/x-algorithm/commit/0bfc2795d308f90032544322747caacd535f75ae), updated the Git LFS pointer for the released Phoenix artifact.
 
-### 1. Complexity Reduction via Candidate Isolation (`make_recsys_attn_mask`)
-The report details how `phoenix/grok.py` implements a specific attention masking strategy. By allowing candidates to attend to the user's interaction history and themselves, but *restricting cross-candidate attention*, the network's processing complexity drops quadratically from $O(M^2 \times L)$ to a linear $O(M \times L)$. This renders inference deterministic, highly cacheable, and ultra-fast.
+This is intentionally a **historical snapshot**, not a claim to describe the complete current production system. X later published additional production-facing Phoenix code, explicit score-weight configuration, a broader visibility-filtering stack, and further transparency tooling in August and September 2026.
 
-### 2. Deconstruction of the Linear-Weighting Fallacy
-Moving past static multiplier assumptions inherited from the 2023 `HeavyRanker` ("a reply is worth 75 likes"), the report proves the non-linear multi-task learning nature of the 15-to-19 distinct engagement probability heads optimized concurrently within the model.
+## What the report covers
 
-### 3. Signal Mechanics & Suppression Triggers
-* **Positive Drivers:** Continuous regression modeling for passive Dwell Time, High-intent DM Sharing (`dm_share`), and Video Quality View (`VQV_WEIGHT`) duration gates.
-* **Negative Friction:** Aggressive suppression of external links for non-Premium accounts, hashtag inflation penalties, author diversity decay multipliers, visual unoriginality screening (`slop_score`), and the restrictive `lte_1000` follower bucket filtering reply loops.
+### Home Mixer and the candidate pipeline
 
----
+The report follows the request path through query hydration, candidate sourcing, candidate hydration, filtering, scoring, selection, post-selection checks, and side effects.
 
-## 🔬 Reproducibility Framework
-The report includes an implementation breakdown of the `phoenix/run_pipeline.py` framework shipped in May 2026, evaluating how researchers can interface with the ~3 GB Git LFS pre-trained mini Phoenix model artifacts (`oss-phoenix-artifacts/`) to test custom user-action interaction sequences.
+### Thunder and Phoenix retrieval
 
----
+Thunder supplies recent in-network content from followed accounts. Phoenix handles learned out-of-network retrieval through a two-stage recommendation design.
 
-## 📜 Metadata & Citations
-* **Author:** Emil Veliyev ([github.com/emillvl](https://github.com/emillvl))
-* **Target Repository:** [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm)
-* **Reference Commit:** `e414c17` (May 15, 2026)
-* **License:** Apache 2.0
+### Phoenix ranking and candidate isolation
 
----
-*For a complete structural review, including temporal complexity matrices and adversarial open-source risk paradoxes, refer directly to the full PDF report in this repository.*
+The May Phoenix ranker uses a special attention mask: each candidate can attend to the viewer and interaction history, and to itself, but not to other candidates in the same inference batch. The report explains why this matters for score independence and what it does - and does not - imply about computational complexity.
+
+### Multi-action prediction
+
+Phoenix predicts multiple possible viewer actions rather than one universal engagement score. The report also explains an important distinction that X later made explicit: action weights scale **predicted probabilities or values**, not raw engagement counts. A visible weight therefore should not be interpreted as a universal exchange rate such as "one reply equals N likes."
+
+### Grox, filtering, and blending
+
+The May release added Grox content-understanding components, more hydrators and candidate sources, and ads-blending code. The report keeps these separate from the ranking model instead of treating every label or classifier as a direct ranking penalty.
+
+### Reproducibility
+
+The May release shipped `phoenix/run_pipeline.py`, a frozen mini Phoenix model, and a demonstration corpus. The report explains what can reasonably be tested with that environment and why it should not be treated as a local clone of X's full production feed.
+
+## Evidence boundary
+
+The repository is useful because it lets us inspect concrete architecture and code paths. It does **not** establish every production detail.
+
+The report therefore avoids treating the following as known unless the source supports them:
+
+- global traffic or request volume;
+- hidden production thresholds;
+- closed datasets, services, or experiments;
+- permanent universal ratios between engagement types;
+- the assumption that every exposed signal is a direct additive rank factor.
+
+## Repository structure
+
+```text
+x-algorithm-breakdown/
+├── report/
+│   └── X_Algorithm_Breakdown_May_2026.pdf
+├── LICENSE
+└── README.md
+```
+
+## Sources
+
+The report cites the pinned May 2026 source directly, including:
+
+- the root `README.md`;
+- `phoenix/README.md`;
+- `phoenix/grok.py` and `make_recsys_attn_mask`;
+- `phoenix/run_pipeline.py`;
+- the May 15 release commits.
+
+The current official repository is also referenced only where later documentation clarifies limitations or corrects common interpretations:
+
+- [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm)
+
+## Author
+
+**Emil Veliyev** - [@emillvl](https://github.com/emillvl)
+
+## License
+
+This repository is licensed under the [Apache License 2.0](LICENSE).
+
+X and related trademarks belong to their respective owners. This project is an independent technical analysis and is not affiliated with or endorsed by X Corp. or xAI.
