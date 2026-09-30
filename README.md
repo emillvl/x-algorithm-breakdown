@@ -71,6 +71,7 @@ The report therefore avoids treating the following as known unless the source su
 ```text
 x-algorithm-breakdown/
 ├── report/
+│   ├── source.html
 │   └── X_Algorithm_Breakdown_May_2026.pdf
 ├── LICENSE
 └── README.md
