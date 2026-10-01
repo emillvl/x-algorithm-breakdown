@@ -1,14 +1,14 @@
 # X Algorithm Breakdown
 
-A source-grounded technical analysis of the **May 15, 2026** open-source release of X's For You recommendation system.
+A technical report on the **May 15, 2026** open-source release of X's For You recommendation system, based on the published code.
 
 The report focuses on what can be established from the public `xai-org/x-algorithm` source snapshot: the request path through Home Mixer, in-network and out-of-network retrieval, Phoenix ranking, candidate-isolation attention, multi-action prediction, filtering, Grox content understanding, and the reproducible mini-model pipeline released in May.
 
 **Read the report:** [X Algorithm Breakdown - May 2026](report/X_Algorithm_Breakdown_May_2026.pdf)
 
-## Why this version exists
+## About this edition
 
-The original report was technically dense and sometimes stated interpretations more strongly than the source justified. This revision keeps the technical core but changes the way it is presented:
+This edition revises the original report's dense prose and qualifies interpretations that went beyond the source evidence. It keeps the technical analysis and adds:
 
 - clearer, more natural prose;
 - a restrained research-report layout instead of a presentation-style PDF;
@@ -26,7 +26,7 @@ The primary source is:
 
 A second May 15 commit, [`0bfc279`](https://github.com/xai-org/x-algorithm/commit/0bfc2795d308f90032544322747caacd535f75ae), updated the Git LFS pointer for the released Phoenix artifact.
 
-This is intentionally a **historical snapshot**, not a claim to describe the complete current production system. X later published additional production-facing Phoenix code, explicit score-weight configuration, a broader visibility-filtering stack, and further transparency tooling in August and September 2026.
+The report describes a **historical snapshot**. It does not describe the complete current production system. X later published additional production-facing Phoenix code, explicit score-weight configuration, a broader visibility-filtering stack, and further transparency tooling in August and September 2026.
 
 ## What the report covers
 
@@ -56,7 +56,7 @@ The May release shipped `phoenix/run_pipeline.py`, a frozen mini Phoenix model, 
 
 ## Evidence boundary
 
-The repository is useful because it lets us inspect concrete architecture and code paths. It does **not** establish every production detail.
+The published code lets readers inspect architecture and code paths, but leaves some production details unknown.
 
 The report therefore avoids treating the following as known unless the source supports them:
 
